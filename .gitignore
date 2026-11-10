@@ -1,0 +1,22 @@
+node_modules
+dist
+dist-ssr
+*.local
+.DS_Store
+.vite
+
+# Machine-specific Claude Code permissions — contains absolute paths from this
+# computer, so it is noise in a shared repo. `.claude/settings.json` (no
+# `.local`) is the shared one and is tracked if it ever exists.
+.claude/settings.local.json
+
+# Editor and OS noise
+.idea
+.vscode/*
+!.vscode/extensions.json
+Thumbs.db
+desktop.ini
+
+# OneDrive writes these next to files it has trouble syncing.
+*-conflict-*
+*.tmp

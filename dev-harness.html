@@ -1,0 +1,159 @@
+<!doctype html>
+<!--
+  Dev-only harness: the real App, driven by a script instead of a human.
+
+  It exists so the UI can be verified the way the core already is. `npm run sim`
+  proves the rules work but renders nothing, and the boss banner and the reward
+  card only appear minutes into a run that somebody has to play. This page clicks
+  Roll, spends points and answers boss rewards on a timer, so a headless Chrome
+  with --virtual-time-budget can fast-forward to any wave and screenshot it.
+
+  Not part of the build: Vite only bundles index.html.
+
+  Params: speed=1|2|3, hold=<ms to delay the screenshot>, claim=0 to leave boss
+  rewards unclaimed so the card stays on screen.
+
+    npm run dev
+    chrome --headless=new --disable-gpu --window-size=1600,900 \
+      --screenshot=out.png --enable-logging=stderr --log-level=0 \
+      "http://localhost:5173/dev-harness.html?speed=3&claim=0&hold=52000"
+
+  52 seconds of real time at 3x reaches the wave-5 Gatekeeper and its reward.
+-->
+
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Luck Defense — dev harness</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module">
+      import { createElement } from 'react'
+      import { createRoot } from 'react-dom/client'
+      import { App } from '/src/ui/App.tsx'
+      import '/src/ui/styles.css'
+
+      // Fast-forward is unlocked by clearing wave 20, which a fresh browser
+      // profile has not done — so the harness grants itself the progress before
+      // the app reads it. Without this every run here crawls at 1x.
+      // ?best=<n> seeds it to a chosen point, for checking the locked states.
+      try {
+        const seed = new URLSearchParams(location.search).get('best') ?? '30'
+        localStorage.setItem('meundee.bestWave', seed)
+      } catch {}
+
+      // createElement rather than JSX: an inline module script is plain JS to
+      // Vite. No StrictMode either — the point is to watch one real run.
+      createRoot(document.getElementById('root')).render(createElement(App))
+
+      const params = new URLSearchParams(location.search)
+      const speed = params.get('speed') ?? '3'
+      /** Leave boss rewards unclaimed, so the card stays up for a screenshot. */
+      const claims = params.get('claim') !== '0'
+      /** roll=0 fields nothing, so the track fills and the warnings fire. */
+      const rolls = params.get('roll') !== '0'
+
+      // Delays the load event, and with it Chrome's --screenshot, by holding an
+      // image open. The game needs real seconds to reach a boss.
+      const hold = params.get('hold')
+      if (hold) {
+        const img = document.createElement('img')
+        img.src = `/__hold?ms=${hold}`
+        img.style.display = 'none'
+        document.body.appendChild(img)
+      }
+
+      /** Any button whose visible text starts with `text`. */
+      const button = (text) =>
+        [...document.querySelectorAll('button')].find((b) =>
+          b.textContent.trim().toLowerCase().startsWith(text),
+        )
+
+      let ticks = 0
+      setInterval(() => {
+        ticks++
+
+        // Speed buttons are labelled "1x" / "2x" / "3x".
+        if (ticks === 2) button(`${speed}×`)?.click()
+
+        // Roll as often as gold allows — the heuristic's first rule.
+        const roll = rolls ? button('roll') : null
+        if (roll && !roll.disabled) roll.click()
+
+        // Commit every point to Pierce, so SOME build actually forms.
+        const pierce = button('pierce')
+        if (pierce && !pierce.disabled) pierce.click()
+
+        // Answer a boss reward, alternating so every option gets exercised.
+        const card = document.querySelector('.reward-card')
+        if (card && claims) {
+          const options = [
+            () => card.querySelectorAll('.reward-classes button')[0],
+            () => card.querySelectorAll('.reward-split button')[0],
+            () => card.querySelectorAll('.reward-split button')[1],
+          ]
+          // Held for a beat first, so a screenshot can catch the card itself.
+          if (!card.dataset.seenAt) card.dataset.seenAt = String(ticks)
+          else if (ticks - Number(card.dataset.seenAt) > 40) {
+            const pick = options[Number(card.dataset.seenAt) % 3]()
+            if (pick && !pick.disabled) {
+              const before = document.querySelectorAll('.stat-value')
+              console.log(
+                `[claim] "${pick.textContent.trim()}" — before: ` +
+                  `gold ${before[3]?.textContent} pts ${before[4]?.textContent} ` +
+                  `units ${before[6]?.textContent}`,
+              )
+              pick.click()
+              const after = document.querySelectorAll('.stat-value')
+              console.log(
+                `[claim] after: gold ${after[3]?.textContent} pts ${after[4]?.textContent} ` +
+                  `units ${after[6]?.textContent} card ${document.querySelector('.reward-card') ? 'still up' : 'gone'}`,
+              )
+            }
+          }
+        }
+      }, 50)
+
+      // Console noise is the thing being checked, so make state visible too.
+      setInterval(() => {
+        const wave = document.querySelector('.stat .stat-value')?.textContent
+        const boss = document.querySelector('.boss-banner b')?.textContent
+        const reward = document.querySelector('.reward-title')?.textContent
+        const track = document.querySelectorAll('.stat')[4]?.textContent
+        console.log(
+          `[harness] wave ${wave} boss ${boss ?? '-'} reward ${reward ?? '-'} | ${track}`,
+        )
+      }, 2000)
+
+      // ?measure=1 reports layout widths, for chasing horizontal overflow.
+      if (params.get('measure')) {
+        setTimeout(() => {
+          const w = (sel) => {
+            const el = document.querySelector(sel)
+            return el ? Math.round(el.getBoundingClientRect().width) : 'none'
+          }
+          console.log(
+            `[measure] innerWidth=${window.innerWidth} ` +
+              `scrollWidth=${document.documentElement.scrollWidth} ` +
+              `app=${w('.app')} layout=${w('.layout')} stage=${w('.stage')} ` +
+              `field=${w('.field')} panel=${w('.panel')} stats=${w('.stats')}`,
+          )
+        }, 1500)
+      }
+
+      // Progress is the one thing that outlives a run, so it gets its own line:
+      // what is banked, and which speed buttons that actually opens.
+      setInterval(() => {
+        let stored = '?'
+        try {
+          stored = localStorage.getItem('meundee.bestWave') ?? 'none'
+        } catch {}
+        const speeds = [...document.querySelectorAll('.speed')]
+          .map((b) => `${b.textContent.trim()}${b.disabled ? '[locked]' : ''}`)
+          .join(' ')
+        console.log(`[progress] best=${stored} speeds: ${speeds}`)
+      }, 2000)
+    </script>
+  </body>
+</html>

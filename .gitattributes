@@ -1,0 +1,14 @@
+# Store every text file with LF in the repository, whatever the working copy
+# uses. Without this, committing from Windows stores CRLF, and the first person
+# to touch the project from macOS or Linux produces a diff that claims every
+# line of every file changed. Checkout still gets native endings on Windows.
+* text=auto eol=lf
+
+# Keep the lockfile out of diffs and merges; it is generated, and a conflict in
+# it is resolved by re-running the install, never by hand-editing.
+package-lock.json -diff linguist-generated
+
+# The design document is the real reading material here, but it is 900+ lines
+# of Korean prose, so without this GitHub reports the project as mostly
+# Markdown rather than TypeScript.
+DESIGN.md linguist-documentation

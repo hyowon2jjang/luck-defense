@@ -1,0 +1,1471 @@
+:root {
+  color-scheme: dark;
+  --bg: #0b0f18;
+  --panel: #131a28;
+  --line: #222c42;
+  --text: #e6edf6;
+  --muted: #8b98ad;
+  --accent: #4ade80;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.5 system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+.app {
+  /* Three columns and nothing else: 280 + 520 board + 300. Wider than this and
+     the board drifts away from the panels across an empty gap. */
+  max-width: 1190px;
+  margin: 0 auto;
+  padding: 16px 16px 24px;
+}
+
+.topbar {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.topbar h1 {
+  margin: 0;
+  font-size: 20px;
+  letter-spacing: 0.01em;
+}
+
+.milestone {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.seed {
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.speeds {
+  margin-left: auto;
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.speed {
+  padding: 3px 10px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+}
+
+.speed:hover:not(.active) {
+  color: var(--text);
+}
+
+.speed.locked {
+  color: #4a5468;
+  cursor: not-allowed;
+}
+
+/* What it costs, on the control itself. A dimmed button with no reason on it
+   reads as broken, and the reason should not need a hover to find. */
+.speed em {
+  font-style: normal;
+  font-size: 8px;
+  margin-left: 3px;
+  opacity: 0.85;
+}
+
+.speed.active {
+  background: #1c3a2a;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.layout {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* Exactly the board, never stretched: the canvas has a fixed size, and letting
+   the column grow past it just opens a gap the eye has to cross. */
+.stage {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.field {
+  display: block;
+  /* Square by ratio rather than by a fixed height: once max-width shrinks the
+     box on a narrow screen, the height has to follow or the arena ovals. */
+  width: var(--field);
+  max-width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  touch-action: none;
+  cursor: grab;
+}
+
+.field:active {
+  cursor: grabbing;
+}
+
+.field.placing {
+  cursor: copy;
+}
+
+.inspector {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #0b0f18e8;
+  border: 1px solid var(--line);
+  pointer-events: none;
+}
+
+.inspector strong {
+  font-weight: 600;
+}
+
+.inspector .reach {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.inspector .reach b {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.inspector button {
+  pointer-events: auto;
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  gap: 14px;
+  justify-items: center;
+  background: #0b0f18cc;
+  border-radius: 10px;
+}
+
+.overlay p {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 700;
+}
+
+.overlay .won {
+  color: var(--accent);
+}
+
+.overlay .lost {
+  color: #f87171;
+}
+
+.panel {
+  flex: 0 0 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.panel h2 {
+  margin: 0 0 8px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.stats {
+  display: grid;
+  /* minmax(0, 1fr), not 1fr. A bare `1fr` floors each track at its content's
+     min-content width, so the Skip button inside the Next tile widened the
+     grid past the screen — which then stretched the layout, and with it the
+     board, since the flex row sizes every column to the widest one. */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 10px;
+  background: #0e1420;
+  border-radius: 7px;
+}
+
+.stat-label {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.stat-value {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.stat.next {
+  flex-wrap: wrap;
+  position: relative;
+}
+
+.skip {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  padding: 2px 7px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  background: #1d2739;
+  border-color: var(--line);
+}
+
+.skip.paying {
+  background: #3a2416;
+  border-color: #6b4423;
+  color: #fbbf24;
+  font-weight: 600;
+}
+
+button {
+  font: inherit;
+  color: var(--text);
+  background: #1d2739;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  border-color: #3a4867;
+}
+
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+button.primary {
+  width: 100%;
+  background: #1c3a2a;
+  border-color: #2c5c41;
+  font-weight: 600;
+}
+
+.upgrades {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.upgrades button {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.upgrades em {
+  font-style: normal;
+  color: var(--muted);
+}
+
+.cost {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.roster-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) repeat(3, 30px);
+  gap: 3px;
+  align-items: center;
+}
+
+.col-head,
+.row-head {
+  font-size: 10px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.row-head {
+  text-align: left;
+  font-weight: 600;
+}
+
+.roster-grid .cell {
+  height: 24px;
+  padding: 0;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  border-radius: 5px;
+  border: 1px solid transparent;
+  background: #0e1420;
+}
+
+.roster-grid .cell:hover {
+  background: #17233a;
+}
+
+.roster-grid .cell.selected {
+  background: #1d2c47;
+  border-width: 2px;
+}
+
+/* An empty combination is a dash, not a gap: the grid has to stay a grid. */
+.roster-grid .empty-cell {
+  height: 24px;
+  border-radius: 5px;
+  background: #0b0f18;
+  position: relative;
+}
+
+.roster-grid .empty-cell::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 6px;
+  height: 1px;
+  background: #273144;
+  transform: translate(-50%, -50%);
+}
+
+.roster-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 8px;
+  background: #0e1420;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  text-align: left;
+}
+
+.roster-row:hover {
+  background: #141c2c;
+  border-color: var(--line);
+}
+
+.roster-row.selected {
+  background: #17233a;
+  border-color: #3a4867;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.type {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.count {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.mini {
+  padding: 3px 7px;
+  font-size: 11px;
+}
+
+.count em {
+  font-style: normal;
+  color: var(--accent);
+}
+
+.empty {
+  margin: 0;
+  color: var(--muted);
+}
+
+/* Amber, and not pulsing: the first step should catch the eye without
+   implying the run is already lost. */
+.stat.caution {
+  border-color: #6b4b16;
+  background: #1e1708;
+}
+
+.stat.caution .stat-value {
+  color: #fbbf24;
+}
+
+.alarm.caution {
+  color: #fbbf24;
+  border-color: #6b4b16;
+  background: #1e170899;
+}
+
+.stat.alert {
+  background: #2a1218;
+  box-shadow: inset 0 0 0 1px #7f2d3a;
+}
+
+.stat.alert .stat-value {
+  color: #f87171;
+}
+
+.alarm {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 7px;
+  background: #2a1218;
+  color: #fca5a5;
+  font-size: 12px;
+}
+
+.hint {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.pill {
+  float: right;
+  color: var(--accent);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.overlay .detail {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.note {
+  margin-top: 16px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* --- Left inspector ---------------------------------------------------- */
+
+.inspector-panel {
+  flex: 0 0 280px;
+  order: -1;
+}
+
+.placeholder h2 {
+  margin: 0 0 8px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.unit-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.unit-head {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.unit-tier {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+}
+
+.unit-name {
+  margin: 2px 0 3px;
+  font-size: 16px;
+  line-height: 1.2;
+}
+
+.unit-stats {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 10px;
+  margin: 0;
+  font-size: 12px;
+}
+
+.unit-stats dt {
+  color: var(--muted);
+}
+
+.unit-stats dd {
+  margin: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.unit-stats.record {
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.matchups {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 5px;
+}
+
+.matchup {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 6px 2px;
+  border-radius: 6px;
+  background: #0e1420;
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.matchup b {
+  font-size: 13px;
+  color: #f87171;
+  font-variant-numeric: tabular-nums;
+}
+
+.matchup.good b {
+  color: var(--accent);
+}
+
+.unit-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.unit-actions.column {
+  flex-direction: column;
+}
+
+.unit-actions button {
+  flex: 1;
+  font-size: 12px;
+}
+
+.unit-actions .sell {
+  background: #3a2416;
+  border-color: #6b4423;
+}
+
+.enhance {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  background: #241b3d;
+  border-color: #453279;
+  font-size: 12px;
+}
+
+.enhance b {
+  font-weight: 700;
+}
+
+.enhance .odds {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Reference, not a control: folded away so the controls fit on one screen. */
+.tier-table summary {
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--muted);
+  padding: 2px 0;
+}
+
+.tier-table summary:hover {
+  color: var(--text);
+}
+
+.tier-table[open] summary {
+  margin-bottom: 6px;
+}
+
+.tier-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.tier-table th {
+  padding: 0 0 5px;
+  text-align: right;
+  font-weight: 500;
+  color: var(--muted);
+  border-bottom: 1px solid var(--line);
+}
+
+.tier-table th:first-child,
+.tier-table td:first-child {
+  text-align: left;
+  font-weight: 600;
+}
+
+.tier-table td {
+  padding: 3px 0;
+  text-align: right;
+}
+
+.tier-table tr + tr td {
+  border-top: 1px solid #161d2c;
+}
+
+.tier-table .muted {
+  color: #3a4867;
+}
+
+.enhance-hint {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 7px;
+  background: #0e1420;
+  text-align: center;
+}
+
+.reveal.failed {
+  border-color: #7f2d3a;
+}
+
+/* --- Roll reveal -------------------------------------------------------- */
+
+.reveal {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 16px 9px 11px;
+  border-radius: 10px;
+  background: #0b0f18f2;
+  border: 1px solid var(--line);
+  transform: translateX(-50%);
+  animation: reveal-in 2.4s ease-out forwards;
+  pointer-events: none;
+}
+
+.reveal .glow {
+  position: absolute;
+  inset: -1px;
+  border-radius: 10px;
+  opacity: 0;
+  filter: blur(14px);
+  z-index: -1;
+}
+
+.reveal-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.reveal-tier {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+}
+
+.reveal strong {
+  font-size: 14px;
+}
+
+@keyframes reveal-in {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-10px) scale(0.94);
+  }
+  10% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-6px) scale(0.98);
+  }
+}
+
+/* The louder the tier, the longer it lingers and the harder it glows. */
+.reveal.rank-3 .glow,
+.reveal.rank-4 .glow,
+.reveal.rank-5 .glow,
+.reveal.rank-6 .glow,
+.reveal.rank-7 .glow {
+  animation: reveal-glow 2.4s ease-out forwards;
+}
+
+.reveal.rank-4,
+.reveal.rank-5 {
+  padding: 12px 20px 12px 14px;
+  animation-duration: 3.2s;
+}
+
+.reveal.rank-4 strong,
+.reveal.rank-5 strong {
+  font-size: 16px;
+}
+
+.reveal.rank-6,
+.reveal.rank-7 {
+  padding: 16px 26px 16px 18px;
+  border-width: 2px;
+  animation: reveal-in-big 4.2s ease-out forwards;
+}
+
+.reveal.rank-6 strong,
+.reveal.rank-7 strong {
+  font-size: 20px;
+  letter-spacing: 0.01em;
+}
+
+.reveal.rank-6 .glow,
+.reveal.rank-7 .glow {
+  animation: reveal-glow-big 4.2s ease-out forwards;
+}
+
+@keyframes reveal-glow {
+  0% {
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes reveal-glow-big {
+  0% {
+    opacity: 0;
+  }
+  8% {
+    opacity: 0.95;
+  }
+  30% {
+    opacity: 0.55;
+  }
+  60% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes reveal-in-big {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-24px) scale(0.6);
+  }
+  12% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1.14);
+  }
+  22% {
+    transform: translateX(-50%) scale(1);
+  }
+  28% {
+    transform: translateX(-50%) scale(1.05);
+  }
+  36% {
+    transform: translateX(-50%) scale(1);
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-8px) scale(0.98);
+  }
+}
+
+/* --- Final boss countdown ---------------------------------------------- */
+
+.countdown {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 7px 13px;
+  border-radius: 8px;
+  background: #0b0f18e8;
+  border: 1px solid var(--line);
+  font-size: 11px;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.countdown b {
+  font-size: 17px;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.countdown.urgent {
+  border-color: #7f2d3a;
+  background: #2a1218ee;
+}
+
+.countdown.urgent b {
+  color: #f87171;
+}
+
+/* --- Boss banner -------------------------------------------------------- */
+
+/* In the top bar, between the title and the speeds. */
+.boss-banner {
+  flex: 0 1 auto;
+  min-width: 0;
+  padding: 4px 10px 5px;
+  border-radius: 8px;
+  background: #0b0f18;
+  border: 1px solid var(--line);
+  pointer-events: none;
+}
+
+.boss-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.boss-line b {
+  font-size: 13px;
+  letter-spacing: 0.01em;
+}
+
+.lamp {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-weight: 700;
+}
+
+.lamp.size {
+  color: #fbbf24;
+  background: #78350f77;
+}
+
+.lamp.shielded {
+  color: #cbd5e1;
+  background: #33415577;
+}
+
+.lamp.healing {
+  color: #4ade80;
+  background: #14532d77;
+}
+
+.boss-tell {
+  display: block;
+  margin-top: 1px;
+  font-size: 10px;
+  line-height: 1.3;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.boss-bar {
+  margin-top: 4px;
+  height: 4px;
+  border-radius: 2px;
+  background: #00000066;
+  overflow: hidden;
+}
+
+.boss-bar span {
+  display: block;
+  height: 100%;
+  transition: width 0.1s linear;
+}
+
+/* --- Boss reward ------------------------------------------------------- */
+
+/*
+ * In the panel with the other decisions, at the top.
+ *
+ * It used to float over the bottom-right of the field. That worked on a 960px
+ * board; on a square one it covers half the arena, and it sits on top of the
+ * units a player might want to sell to make room for the unit being offered.
+ */
+.reward-card {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 11px;
+  border-radius: 10px;
+  background: #101725f5;
+  border: 1px solid #3b4a6b;
+  box-shadow: 0 10px 30px #0008;
+  animation: reward-in 0.35s ease-out;
+}
+
+@keyframes reward-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.reward-card header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.reward-title {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.reward-title b {
+  color: var(--text);
+}
+
+.reward-label {
+  display: block;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  margin-bottom: 5px;
+}
+
+.reward-classes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.reward-classes button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 7px 2px 6px;
+  font-size: 10px;
+  border-radius: 7px;
+}
+
+.reward-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 5px;
+}
+
+.reward-split button {
+  padding: 7px 4px;
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: 7px;
+}
+
+.reward-split em {
+  display: block;
+  font-size: 9px;
+  font-weight: 400;
+  font-style: normal;
+  color: var(--muted);
+}
+
+.reward-card .hint {
+  margin: 5px 0 0;
+  font-size: 10px;
+}
+
+
+/* --- Next wave preview -------------------------------------------------- */
+
+.next-wave {
+  margin-top: 2px;
+}
+
+.next-wave h2 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.boss-pill {
+  background: #3b1f42;
+  color: #e879f9;
+}
+
+.mix {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.mix span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* Same three colours the monsters are drawn in, so the strip and the track
+   are talking about the same thing. */
+.mix i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.mix-small i {
+  background: #7dd3fc;
+}
+
+.mix-medium i {
+  background: #fbbf24;
+}
+
+.mix-large i {
+  background: #f87171;
+  width: 11px;
+  height: 11px;
+}
+
+/* --- Narrow screens ----------------------------------------------------- */
+
+/*
+ * One column, board first.
+ *
+ * Order matters more than it looks: on a phone the thing you came for is the
+ * arena, then the buttons you press every few seconds (Roll, Skip, upgrades).
+ * The inspector is a detail view you open deliberately, so it goes last rather
+ * than sitting between the board and the controls.
+ */
+@media (max-width: 980px) {
+  .app {
+    padding: 12px 10px 24px;
+  }
+
+  .layout {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .stage {
+    order: 1;
+    align-self: center;
+    width: 100%;
+  }
+
+  .field {
+    margin: 0 auto;
+  }
+
+  .panel {
+    order: 2;
+    flex: 1 1 auto;
+  }
+
+  /* Overrides the desktop `order: -1` that floats it to the left column. */
+  .inspector-panel {
+    order: 3;
+    flex: 1 1 auto;
+  }
+
+  /* The banner is sized for a 520px board; on a phone it would eat the arena. */
+  .boss-banner {
+    width: auto;
+    max-width: 62%;
+  }
+}
+
+@media (max-width: 560px) {
+  .topbar {
+    flex-wrap: wrap;
+    gap: 8px 10px;
+  }
+
+  .topbar h1 {
+    font-size: 17px;
+  }
+
+  /* Pushed to its own line rather than squeezed next to the title. */
+  .speeds {
+    margin-left: 0;
+    order: 3;
+  }
+
+  .seed {
+    margin-left: auto;
+  }
+
+  .stats {
+    gap: 6px;
+  }
+}
+
+/*
+ * Touch targets.
+ *
+ * Keyed on the pointer being coarse rather than on width, because the problem
+ * is the finger, not the screen — a tablet has room for the desktop layout and
+ * still cannot hit a 24px cell.
+ */
+@media (pointer: coarse) {
+  .roster-grid {
+    grid-template-columns: minmax(0, 1fr) repeat(3, 46px);
+    gap: 5px;
+  }
+
+  .roster-grid .cell,
+  .roster-grid .empty-cell {
+    height: 40px;
+    font-size: 14px;
+  }
+
+  .speed {
+    padding: 8px 14px;
+    font-size: 13px;
+  }
+
+  .skip {
+    padding: 6px 12px;
+  }
+
+  .upgrades button {
+    padding: 12px 10px;
+  }
+
+  .reward-classes button {
+    padding: 11px 2px 9px;
+  }
+
+  .tier-table summary {
+    padding: 8px 0;
+  }
+}
+
+/* --- Phones: the whole play loop on one screen -------------------------- */
+
+/*
+ * Last block in the file on purpose, so it wins over the coarse-pointer sizes
+ * above. A finger needs a big target, but a phone screen cannot pay for big
+ * targets on everything — on a 390x844 screen the budget is roughly:
+ *
+ *   topbar 44 + board 340 + stats 82 + next 34 + Roll 42 + upgrades 54
+ *   + roster 158 + gaps and padding 84  =  838
+ *
+ * Roll, Upgrades and Roster are what a run is actually played with, so they
+ * stay above the fold and everything else gives up its space: the inspector
+ * and the odds table sit below, where scrolling to them costs nothing because
+ * they are not touched between waves.
+ */
+@media (max-width: 620px) {
+  /* Edge to edge. The arena is the thing being looked at, so on a phone it
+     takes the full width and the page padding is cancelled around it. */
+  .stage {
+    width: auto;
+    margin: 0 -10px;
+  }
+
+  .field {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    border-radius: 0;
+    border-left: 0;
+    border-right: 0;
+  }
+
+  /* A notch smaller throughout: the board just took the width back, and the
+     controls have to fit under it without scrolling. */
+  body {
+    font-size: 13px;
+  }
+
+  .topbar h1 {
+    font-size: 16px;
+  }
+
+  .milestone,
+  .seed {
+    font-size: 10px;
+  }
+
+  .speeds {
+    padding: 2px;
+    gap: 2px;
+  }
+
+  .speed {
+    padding: 4px 9px;
+    font-size: 11px;
+  }
+
+  .skip {
+    padding: 2px 6px;
+    font-size: 10px;
+  }
+
+  .boss-banner {
+    padding: 3px 8px 4px;
+  }
+
+  .boss-line b {
+    font-size: 11px;
+  }
+
+  .boss-tell {
+    font-size: 9px;
+  }
+
+  .primary {
+    padding: 10px;
+    font-size: 13px;
+  }
+
+  /*
+   * Section headings go. Every one of them labels something that already says
+   * what it is — the Roll button has its price on it, the upgrade buttons are
+   * named, the roster grid has A/M/N across the top. The two that carried a
+   * number (points, unit count) are duplicates of stat tiles three rows above.
+   */
+  .panel > section:not(.next-wave) > h2 {
+    display: none;
+  }
+
+  /* The one heading worth keeping, folded onto the same line as its contents. */
+  .next-wave {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .next-wave h2 {
+    display: flex;
+    margin: 0;
+  }
+
+  .panel {
+    gap: 9px;
+    padding: 10px;
+  }
+
+  .panel h2 {
+    margin: 0 0 4px;
+    font-size: 10px;
+  }
+
+  .stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 5px;
+  }
+
+  .stat {
+    padding: 5px 7px;
+    border-radius: 6px;
+  }
+
+  .stat-label {
+    font-size: 9px;
+  }
+
+  .stat-value {
+    font-size: 14px;
+  }
+
+  /* The three damage types side by side, label over level, rather than three
+     full-width rows costing 135px of the budget. */
+  .upgrades {
+    flex-direction: row;
+    gap: 5px;
+  }
+
+  .upgrades button {
+    flex: 1 1 0;
+    min-width: 0;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+    padding: 7px 3px;
+    font-size: 11px;
+  }
+
+  .upgrades em {
+    font-size: 10px;
+  }
+
+  .upgrades .cost {
+    font-size: 10px;
+  }
+
+  /* Explanations are for reading between runs, not mid-wave. */
+  .panel .hint {
+    display: none;
+  }
+
+  /* Between the desktop 24px and the coarse-pointer 40px: still a finger
+     target, but five tiers of it still fit. */
+  .roster-grid {
+    grid-template-columns: minmax(0, 1fr) repeat(3, 38px);
+    gap: 4px;
+  }
+
+  .roster-grid .cell,
+  .roster-grid .empty-cell {
+    height: 32px;
+    font-size: 13px;
+  }
+
+  .row-head {
+    font-size: 9px;
+  }
+
+  .next-wave .mix {
+    font-size: 10px;
+  }
+}
+
+
+/* A tier trait called out on the unit card, where no stat row implies it. */
+.trait {
+  margin: 0;
+  padding: 7px 9px;
+  border-radius: 7px;
+  font-size: 11px;
+  color: #f9a8d4;
+  background: #2a1226;
+  border: 1px solid #5c2b4a;
+}
+
+.trait b {
+  color: #fbcfe8;
+}
+
+
+/* Sound toggle, beside the speeds. Muted is dimmed rather than hidden, so the
+   control still says what state it is in at a glance. */
+.mute {
+  padding: 3px 7px;
+  font-size: 13px;
+  line-height: 1;
+  background: var(--panel);
+  border: 1px solid var(--line);
+}
+
+.mute.muted {
+  opacity: 0.45;
+}
+
+
+/* --- Lifetime record, on the end screen -------------------------------- */
+
+.lifetime {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 2px 16px;
+  margin: 4px 0 16px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: #0b0f18aa;
+  border: 1px solid var(--line);
+  font-size: 12px;
+}
+
+.lifetime dt {
+  color: var(--muted);
+  text-align: right;
+}
+
+.lifetime dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.lifetime em {
+  font-style: normal;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+/* Quiet by design: it explains why the board is not empty, then stops
+   mattering. */
+.resumed {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 2px 6px;
+}

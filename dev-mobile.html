@@ -1,0 +1,67 @@
+<!doctype html>
+<!--
+  Dev-only phone preview: the real app inside fixed-width frames.
+
+  Headless Chrome would not give a narrow viewport here — it clamps the window
+  to around 490px and then captures at the requested size, so a screenshot taken
+  at 390 was a crop of a 490-wide layout and looked like horizontal overflow that
+  was not there. An iframe has a genuine viewport of its own, so media queries
+  inside it respond to the frame's width and what is drawn is what a phone gets.
+
+    npm run dev
+    # then open http://localhost:5173/dev-mobile.html
+    # ...?speed=1&hold=123000  to catch the wave-5 boss in all three frames
+-->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Phone preview</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 20px;
+        background: #070a11;
+        color: #e6edf6;
+        font: 12px/1.5 system-ui, sans-serif;
+        display: flex;
+        gap: 20px;
+        align-items: flex-start;
+      }
+      figure {
+        margin: 0;
+      }
+      figcaption {
+        color: #8b98ad;
+        margin-bottom: 6px;
+      }
+      iframe {
+        border: 1px solid #222c42;
+        border-radius: 12px;
+        background: #0b0f18;
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="frames"></div>
+
+    <script>
+      // This page's own query string is passed through to every frame, so a
+      // single moment of a run — a boss fight, a pending reward — can be looked
+      // at across all three widths at once.
+      const q = location.search.slice(1) || 'speed=3&hold=42000'
+      const sizes = [
+        [390, 844, 'iPhone 14'],
+        [360, 800, 'small Android'],
+        [820, 844, 'tablet'],
+      ]
+      document.getElementById('frames').outerHTML = sizes
+        .map(
+          ([w, h, name]) =>
+            `<figure><figcaption>${w} x ${h} — ${name}</figcaption>` +
+            `<iframe src="/dev-harness.html?${q}" width="${w}" height="${h}"></iframe></figure>`,
+        )
+        .join('')
+    </script>
+  </body>
+</html>

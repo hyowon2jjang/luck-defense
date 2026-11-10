@@ -1,0 +1,119 @@
+<!doctype html>
+<!--
+  Dev-only contact sheet for the boss silhouettes.
+
+  The six bosses are spread across waves 5 to 30, so comparing them inside a real
+  run means playing for twenty minutes and losing most of the time. This draws
+  all of them at once, on the board's own background, at the size they actually
+  appear — plus a 3x row, because a shape that only works when magnified does not
+  work.
+
+  Not part of the build: Vite only bundles index.html.
+
+    npm run dev
+    # then open http://localhost:5173/dev-bosses.html
+-->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Boss silhouettes</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 24px;
+        background: #0b0f18;
+        color: #e6edf6;
+        font: 13px/1.5 system-ui, sans-serif;
+      }
+      h1 {
+        font-size: 15px;
+        font-weight: 600;
+        margin: 0 0 4px;
+      }
+      p {
+        margin: 0 0 18px;
+        color: #8b98ad;
+        font-size: 11px;
+      }
+      canvas {
+        display: block;
+        border: 1px solid #222c42;
+        border-radius: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Boss silhouettes</h1>
+    <p>
+      Top row: actual size on the board (r=22), next to a unit tile and a large
+      trash monster for scale. Bottom row: 3x. The Shifter is shown in all three
+      of its forms, because its side count is its trait.
+    </p>
+    <canvas id="sheet" width="1180" height="420"></canvas>
+
+    <script type="module">
+      import { drawBossBody } from '/src/render/boss-art.ts'
+      import { BOSSES } from '/src/core/data/bosses.ts'
+
+      const ctx = document.getElementById('sheet').getContext('2d')
+      const COLS = 7 // six bosses, with the Shifter taking three slots
+
+      // Same values the renderer uses, so this is not a flattering lie.
+      const SIZE_RADIUS = { small: 7, medium: 10, large: 15 }
+
+      /** Boss, plus the size to draw it at — only the Shifter varies. */
+      const cells = []
+      for (const b of BOSSES) {
+        if (b.cycle) {
+          for (const size of b.cycle.sizes) cells.push({ def: b, size })
+        } else {
+          cells.push({ def: b, size: b.size })
+        }
+      }
+
+      function frame(now) {
+        const elapsed = now / 1000
+
+        ctx.fillStyle = '#0f1420'
+        ctx.fillRect(0, 0, 1180, 420)
+
+        const colW = 1180 / cells.length
+        ctx.textAlign = 'center'
+
+        cells.forEach((cell, i) => {
+          const cx = colW * (i + 0.5)
+
+          // Actual size, with a 36px unit tile and a large trash disc beside it.
+          drawBossBody(ctx, cell.def.key, cell.def.color, cx, 70, 22, elapsed, cell.size)
+
+          ctx.fillStyle = '#4ade80'
+          ctx.fillRect(cx - 54, 52, 32, 32)
+          ctx.fillStyle = '#f87171'
+          ctx.beginPath()
+          ctx.arc(cx + 48, 70, SIZE_RADIUS.large, 0, Math.PI * 2)
+          ctx.fill()
+
+          ctx.fillStyle = '#8b98ad'
+          ctx.font = '10px system-ui, sans-serif'
+          ctx.fillText(
+            cell.def.cycle ? `${cell.def.name} · ${cell.size}` : cell.def.name,
+            cx,
+            118,
+          )
+
+          // 3x, for judging detail.
+          drawBossBody(ctx, cell.def.key, cell.def.color, cx, 270, 66, elapsed, cell.size)
+        })
+
+        ctx.fillStyle = '#5a6880'
+        ctx.font = '10px system-ui, sans-serif'
+        ctx.textAlign = 'left'
+        ctx.fillText('left of each boss: a 36px unit tile · right: a Large trash monster', 14, 404)
+
+        requestAnimationFrame(frame)
+      }
+
+      requestAnimationFrame(frame)
+    </script>
+  </body>
+</html>

@@ -1,0 +1,154 @@
+<!doctype html>
+<!--
+  Dev-only contact sheet for the unit tiles.
+
+  Twenty-four combinations, at the size they are actually drawn — plus a packed
+  board, because the question that matters is not whether one tile looks good
+  but whether sixty of them still read. The letter tiles this replaced were
+  readable at a glance; anything that loses that is a downgrade however pretty.
+
+  Not part of the build: Vite only bundles index.html.
+
+    npm run dev
+    # then open http://localhost:5173/dev-units.html
+-->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Unit tiles</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 24px;
+        background: #0b0f18;
+        color: #e6edf6;
+        font: 13px/1.5 system-ui, sans-serif;
+      }
+      h1 {
+        font-size: 15px;
+        font-weight: 600;
+        margin: 0 0 4px;
+      }
+      p {
+        margin: 0 0 16px;
+        color: #8b98ad;
+        font-size: 11px;
+      }
+      canvas {
+        display: block;
+        border: 1px solid #222c42;
+        border-radius: 10px;
+        margin-bottom: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Unit tiles</h1>
+    <p>
+      Left: all 24 combinations at actual size (32px, as drawn on the board).
+      Right: one of each class at 4x. Seen from above, facing right — on the
+      board each one is turned to face the track.
+    </p>
+    <canvas id="grid" width="1100" height="430"></canvas>
+
+    <h1>A full board</h1>
+    <p>
+      Sixty-one tiles on the board's background, weighted the way a real roster
+      looks — mostly Common and Rare, with a few high tiers to pick out.
+    </p>
+    <canvas id="board" width="1100" height="260"></canvas>
+
+    <script type="module">
+      import { drawUnitBody } from '/src/render/unit-art.ts'
+      import { TIERS, TIER_BY_KEY } from '/src/core/data/tiers.ts'
+      import { CLASS_IDS, CLASSES } from '/src/core/data/classes.ts'
+
+      const CELL = 36
+      const PAD = 2
+
+      const grid = document.getElementById('grid').getContext('2d')
+      const board = document.getElementById('board').getContext('2d')
+
+      /** Deterministic roster: a real board is mostly fodder. */
+      const roster = []
+      let seed = 7
+      const rand = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32)
+      for (let i = 0; i < 61; i++) {
+        const roll = rand()
+        const tier =
+          roll < 0.5 ? 0 : roll < 0.8 ? 1 : roll < 0.92 ? 2 : roll < 0.97 ? 3 : roll < 0.99 ? 4 : roll < 0.997 ? 5 : roll < 0.999 ? 6 : 7
+        roster.push({ classId: CLASS_IDS[Math.floor(rand() * 3)], tier: TIERS[tier].key })
+      }
+
+      /**
+       * Fakes the combat cooldown so the sheet shows the same motion the board
+       * does: each class cycles at its own attack interval, tier bonus included.
+       * Without the tier term the eight rows would all throw at one speed and
+       * the whole point of the rate ladder would be invisible here.
+       */
+      function cycle(classId, tier, elapsed, offset) {
+        const interval =
+          CLASSES[classId].attackInterval / TIER_BY_KEY[tier].attackSpeed
+        return [(elapsed + offset * 0.37) % interval, interval]
+      }
+
+      function frame(now) {
+        const elapsed = now / 1000
+
+        grid.fillStyle = '#0f1420'
+        grid.fillRect(0, 0, 1100, 430)
+        grid.font = '10px system-ui, sans-serif'
+
+        TIERS.forEach((tier, row) => {
+          const y = 36 + row * 48
+
+          grid.fillStyle = tier.color
+          grid.textAlign = 'right'
+          grid.fillText(tier.name, 92, y + 20)
+
+          CLASS_IDS.forEach((classId, col) => {
+            drawUnitBody(grid, classId, tier.key, 110 + col * 46, y, CELL - PAD * 2, elapsed, false, 0, ...cycle(classId, tier.key, elapsed, row))
+          })
+        })
+
+        grid.fillStyle = '#8b98ad'
+        grid.textAlign = 'center'
+        CLASS_IDS.forEach((classId, col) => {
+          grid.fillText(classId, 126 + col * 46, 22)
+        })
+
+        // One per class at 4x, spaced so nothing can overlap.
+        CLASS_IDS.forEach((classId, col) => {
+          const x = 340 + col * 160
+          drawUnitBody(grid, classId, 'legend', x, 60, 128, elapsed, false, 0, ...cycle(classId, 'legend', elapsed, 0))
+          grid.fillStyle = '#8b98ad'
+          grid.fillText(classId, x + 64, 212)
+        })
+
+        board.fillStyle = '#0f1420'
+        board.fillRect(0, 0, 1100, 260)
+        roster.forEach((u, i) => {
+          const col = i % 16
+          const row = Math.floor(i / 16)
+          drawUnitBody(
+            board,
+            u.classId,
+            u.tier,
+            40 + col * CELL,
+            30 + row * CELL,
+            CELL - PAD * 2,
+            elapsed,
+            false,
+            // Fanned out, the way they sit around the ring in play.
+            (i / 61) * Math.PI * 2,
+            ...cycle(u.classId, u.tier, elapsed, i),
+          )
+        })
+
+        requestAnimationFrame(frame)
+      }
+
+      requestAnimationFrame(frame)
+    </script>
+  </body>
+</html>
